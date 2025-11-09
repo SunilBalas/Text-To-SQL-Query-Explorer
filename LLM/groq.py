@@ -1,6 +1,6 @@
 from typing import Any, Dict
 from langchain_groq import ChatGroq
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 from Core.Base.llm_provider import BaseLLMProvider
 from Core.Enums.llm_provider import LLMProviderType
