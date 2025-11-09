@@ -6,6 +6,6 @@ langchain-core
 faiss-cpu
 sentence-transformers
 numpy
-psycopg2
+psycopg2-binary==2.9.11
 
 # -e .
