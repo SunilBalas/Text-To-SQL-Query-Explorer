@@ -208,3 +208,8 @@ __marimo__/
 
 # secrets
 *.toml
+
+# chunks, databases, indexes
+*.pkl
+*.db
+*.index

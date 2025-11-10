@@ -10,6 +10,7 @@ import streamlit as st
 
 from Core.Utils.helper import Helper
 
+
 class App:
     def __init__(self):
         # Load the database config
@@ -50,7 +51,7 @@ class App:
         self.vectorstore.obj.load_index("schema_store")
 
         # User question
-        user_query = "Get the student name who are in Mathematics."
+        user_query = "explain the student table"
 
         # Retrieve schema context from FAISS
         context = self.vectorstore.obj.retrieve(user_query, k=3)
@@ -69,9 +70,13 @@ class App:
 
         print(f"SQL Query: {sql_query}")
 
-        # Execute the SQL query
-        data = self.db.obj.read(sql_query)
-        print(data)
+        # Check for unsafe keywords
+        is_validate = Helper.check_for_unsafe_keywords(sql_query)
+
+        if is_validate:
+            # Execute the SQL query
+            data = self.db.obj.read(sql_query)
+            print(data)
 
 
 if __name__ == "__main__":

@@ -199,6 +199,12 @@ class App:
                     logger.info(f"Generated SQL query: {sql_query}")
                     time.sleep(1)
 
+                    # Check for unsafe keywords
+                    is_unsafe_keyword = Helper.check_for_unsafe_keywords(sql_query)
+                    if is_unsafe_keyword:
+                        logger.error(f"Invalid SQL Query: {sql_query}")
+                        st.error(f"⚠️ Invalid SQL Query: {sql_query}")
+                        return 
                     # Execute SQL query
                     rows, columns = db.obj.read(sql_query)
                     df = pd.DataFrame(rows, columns=columns)

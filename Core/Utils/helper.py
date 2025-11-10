@@ -1,7 +1,8 @@
 from pathlib import Path
 import random
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 import yaml
+import re
 
 from Core.Repository.database import DatabaseRepository
 
@@ -156,3 +157,12 @@ class Helper:
 
             chunks.append(table_desc.strip())
         return chunks
+
+    @staticmethod
+    def check_for_unsafe_keywords(query:str) -> bool:
+        """Returns True if any unsafe keywords are found."""
+        
+        UNSAFE_KEYWORDS_REGEX = r"\b(ALTER|CREATE|DELETE|DROP|INSERT|REPLACE|UPDATE|TRUNCATE|GRANT|REVOKE)\b"
+        if re.search(UNSAFE_KEYWORDS_REGEX, query, re.IGNORECASE):
+            return True
+        return False
