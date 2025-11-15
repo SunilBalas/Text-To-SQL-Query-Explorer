@@ -3,7 +3,9 @@ import random
 from typing import Any, Dict, List, Tuple
 import yaml
 import re
+import streamlit as st
 
+from Core.Enums.database import DatabaseType
 from Core.Repository.database import DatabaseRepository
 
 
@@ -109,15 +111,13 @@ class Helper:
             (i + 1, teacher_names[i], class_names[i]) for i in range(len(class_names))
         ]
         db.obj.execute(
-            "INSERT INTO teacher (id, name, subject) VALUES (%s, %s, %s)",
-            teachers
+            "INSERT INTO teacher (id, name, subject) VALUES (%s, %s, %s)", teachers
         )
 
         # Insert classes (map to teachers by ID)
         classes = [(i + 1, class_names[i], i + 1) for i in range(len(class_names))]
         db.obj.execute(
-            "INSERT INTO class (id, name, teacher_id) VALUES (%s, %s, %s)",
-            classes
+            "INSERT INTO class (id, name, teacher_id) VALUES (%s, %s, %s)", classes
         )
 
         # Insert 1000 students
@@ -130,7 +130,7 @@ class Helper:
 
         db.obj.execute(
             "INSERT INTO student (id, name, marks, class_id) VALUES (%s, %s, %s, %s)",
-            students
+            students,
         )
 
     @staticmethod
@@ -159,10 +159,22 @@ class Helper:
         return chunks
 
     @staticmethod
-    def check_for_unsafe_keywords(query:str) -> bool:
+    def check_for_unsafe_keywords(query: str) -> bool:
         """Returns True if any unsafe keywords are found."""
         
         UNSAFE_KEYWORDS_REGEX = r"\b(ALTER|CREATE|DELETE|DROP|INSERT|REPLACE|UPDATE|TRUNCATE|GRANT|REVOKE)\b"
         if re.search(UNSAFE_KEYWORDS_REGEX, query, re.IGNORECASE):
             return True
         return False
+
+    @staticmethod
+    def get_database_config(db_type: DatabaseType) -> Dict[str, Dict[str, Any]]:
+        common_keys = ["dbname", "user", "password", "host", "port"]
+
+        match db_type:
+            case DatabaseType.SQLITE:
+                keys_to_include = ["dbname"]
+            case _:
+                keys_to_include = common_keys
+
+        return {key: st.secrets[db_type.value.lower()][key] for key in keys_to_include}

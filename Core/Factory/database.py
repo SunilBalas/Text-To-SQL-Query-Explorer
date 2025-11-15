@@ -7,7 +7,7 @@ from Core.Utils.exception import DatabaseConnectionError
 from Core.Utils.logger import Logger
 
 # Import database so they self-register in BaseDatabase
-# from Database.sqlite import SQLiteDB
+from Database.sqlite import SQLiteDB
 from Database.postgres import PostgresDB
 
 logger = Logger.get_logger()

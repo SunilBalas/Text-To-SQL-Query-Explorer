@@ -71,21 +71,37 @@ class App:
             # Database Dropdown
             selected_db = st.selectbox(
                 "Choose a Database Type",
-                [DatabaseType.POSTGRES.value.lower()],
+                [
+                    DatabaseType.SQLITE.value.lower(),
+                    DatabaseType.POSTGRES.value.lower(),
+                ],
                 format_func=lambda db: f"🗄️ {db}",
-                disabled=True,
+                disabled=False,
             )
 
             # Load the database config
             self.config = {
-                selected_db: {
-                    "dbname": st.secrets[selected_db]["dbname"],
-                    "user": st.secrets[selected_db]["user"],
-                    "password": st.secrets[selected_db]["password"],
-                    "host": st.secrets[selected_db]["host"],
-                    "port": st.secrets[selected_db]["port"],
-                }
+                selected_db: Helper.get_database_config(DatabaseType(selected_db))
             }
+
+            if selected_db == DatabaseType.SQLITE.value.lower():
+                uploaded_db = st.sidebar.file_uploader(
+                    "Select your .db file", type=["db"]
+                )
+
+                if uploaded_db:
+                    save_dir = "Data/DBs"
+                    filename = self.config[selected_db].get("dbname", "sqlite_data")
+                    uploaded_db.name = (
+                        filename if filename.endswith(".db") else f"{filename}.db"
+                    )
+
+                    os.makedirs(save_dir, exist_ok=True)
+                    save_path = os.path.join(save_dir, uploaded_db.name)
+                    Helper.save_db_file(save_path, uploaded_db)
+
+                    st.session_state.db_file_path = save_path
+                    st.sidebar.success(f"✅ File uploaded successfully!")
 
             self.connect_database(selected_db)
 

@@ -14,15 +14,9 @@ from Core.Utils.helper import Helper
 class App:
     def __init__(self):
         # Load the database config
-        db_type = DatabaseType.POSTGRES.value.lower()
+        db_type = DatabaseType.SQLITE.value.lower()
         self.config = {
-            db_type: {
-                "dbname": st.secrets[db_type]["dbname"],
-                "user": st.secrets[db_type]["user"],
-                "password": st.secrets[db_type]["password"],
-                "host": st.secrets[db_type]["host"],
-                "port": st.secrets[db_type]["port"],
-            }
+            db_type: Helper.get_database_config(DatabaseType(db_type))
         }
         self.db = None
         self.vectorstore = None
