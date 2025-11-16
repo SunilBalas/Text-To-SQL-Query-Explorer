@@ -19,3 +19,7 @@ class VectorstoreError(AppError):
 class LLMProviderError(AppError):
     """Raised when LLM Provider has issues."""
     pass
+
+class FileIOError(AppError):
+    """Raised for Streamlit app related errors."""
+    pass

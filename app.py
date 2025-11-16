@@ -2,6 +2,8 @@ import os
 import time
 import streamlit as st
 import pandas as pd
+import uuid
+import sys
 
 from Core.Enums.database import DatabaseType
 from Core.Enums.llm_provider import LLMProviderType
@@ -15,13 +17,14 @@ from Core.Utils.logger import Logger
 from Core.Utils.error_handler import exception_handler
 from Core.Utils.exception import (
     DatabaseConnectionError,
-    LLMProviderError,
-    QueryExecutionError,
     VectorstoreError,
 )
 from Core.Utils.helper import Helper
 
 logger = Logger.get_logger()
+
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
 
 
 class App:
@@ -29,6 +32,8 @@ class App:
         self.db = None
         self.vectorstore = None
         self.llm = None
+        self.config = {}
+        self.unique_suffix = ""
 
     @exception_handler(show_ui=True)
     def main(self) -> None:
@@ -42,9 +47,34 @@ class App:
             unsafe_allow_html=True,
         )
 
-        self.header()
+        # Init session state flags
+        if "connected" not in st.session_state:
+            st.session_state.connected = False
+
+        if "db_uploaded" not in st.session_state:
+            st.session_state.db_uploaded = False
+
+        # Page-wide wrapper to align header → content → footer vertically
+        st.markdown(
+            """
+            <style>
+            .main-container {
+                max-width: 900px;
+                padding-bottom: 80px; /* space for footer */
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        
+        with st.container():
+            st.markdown('<div class="main-container">', unsafe_allow_html=True)
+            self.header()
+            self.process_query_ui()
+            # self.footer()
+            st.markdown('</div>', unsafe_allow_html=True)
+
         self.sidebar()
-        self.process_query_ui()
 
     @exception_handler(show_ui=True)
     def header(self) -> None:
@@ -57,9 +87,30 @@ class App:
             """,
             unsafe_allow_html=True,
         )
+        st.write("Select a database, connect, and ask questions in plain English.")
 
-        st.write(
-            "Select a database, connect, and ask questions in plain English language."
+    @exception_handler(show_ui=True)
+    def footer(self):
+        st.markdown(
+            """
+            <style>
+            .footer-centered {
+                position: fixed;
+                bottom: 0;
+                font-size: 14px;
+            }
+
+            .footer-centered i {
+                color: #d9534f;
+            }
+            </style>
+            
+            <div class="footer-centered">
+                <i class="fas fa-triangle-exclamation"></i>&nbsp;
+                Text-To-SQL Query Explorer may generate incorrect SQL output sometimes.
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
     @exception_handler(show_ui=True)
@@ -84,90 +135,103 @@ class App:
                 selected_db: Helper.get_database_config(DatabaseType(selected_db))
             }
 
+            # ❌ Prevent duplicate file creation on refresh
             if selected_db == DatabaseType.SQLITE.value.lower():
-                uploaded_db = st.sidebar.file_uploader(
-                    "Select your .db file", type=["db"]
-                )
+                uploaded_db = st.file_uploader("Select your .db file", type=["db"])
 
-                if uploaded_db:
+                if uploaded_db and not st.session_state.db_uploaded:
                     save_dir = "Data/DBs"
-                    filename = self.config[selected_db].get("dbname", "sqlite_data")
-                    uploaded_db.name = (
-                        filename if filename.endswith(".db") else f"{filename}.db"
-                    )
-
                     os.makedirs(save_dir, exist_ok=True)
-                    save_path = os.path.join(save_dir, uploaded_db.name)
+
+                    import re
+                    filename = str(uploaded_db.name).replace(".db", "").lower()
+                    filename = re.sub(r"[^a-zA-Z0-9_-]", "", filename.replace(" ", "_"))
+
+                    self.unique_suffix = str(uuid.uuid4()).replace("-", "")
+                    db_name = f"{filename}_{self.unique_suffix}"
+
+                    save_path = os.path.join(save_dir, f"{db_name}.db")
                     Helper.save_db_file(save_path, uploaded_db)
 
-                    st.session_state.db_file_path = save_path
-                    st.sidebar.success(f"✅ File uploaded successfully!")
+                    st.session_state.db_name = db_name
+                    st.session_state.db_uploaded = True
+
+                    st.success("✅ File uploaded successfully!")
+
+                if st.session_state.db_uploaded:
+                    self.config[selected_db]["dbname"] = st.session_state.db_name
+            else:
+                st.session_state.db_uploaded = True
 
             self.connect_database(selected_db)
 
     @exception_handler(show_ui=True)
     def connect_database(self, selected_db: str) -> None:
-        # Connect button
         if st.button("⚡ Connect"):
-            try:
-                status = st.empty()
+            if st.session_state.get("connected", False):
+                st.sidebar.info("✅ Same DB already exists - using previously connected DB.")
+                return
+            
+            if st.session_state.db_uploaded:
+                try:
+                    status = st.empty()
 
-                with st.spinner("⏳ Processing...."):
-                    logger.info(f"Connecting to database: {selected_db}")
-                    status.info("Initializing the repositories")
-                    self.db = DatabaseRepository(
-                        selected_db,
-                        self.config[selected_db],
-                    )
-                    self.vectorstore = VectorStoreRepository(
-                        VectorStoreType.FAISS.value.lower()
-                    )
-                    self.llm = LLMProviderRepository(LLMProviderType.GROQ.value.lower())
-                    time.sleep(1)
+                    with st.spinner("⏳ Processing...."):
+                        logger.info(f"Connecting to DB: {selected_db}")
 
-                    st.session_state["db_name"] = selected_db
-                    st.session_state["db"] = self.db
-                    st.session_state["vectorstore"] = self.vectorstore
-                    st.session_state["llm"] = self.llm
+                        self.db = DatabaseRepository(
+                            selected_db,
+                            self.config[selected_db],
+                        )
+                        self.vectorstore = VectorStoreRepository(
+                            VectorStoreType.FAISS.value.lower()
+                        )
+                        self.llm = LLMProviderRepository(
+                            LLMProviderType.GROQ.value.lower()
+                        )
+                        time.sleep(1)
 
-                    # Get schema context
-                    db = st.session_state["db"]
-                    vectorstore = st.session_state["vectorstore"]
-                    llm = st.session_state["llm"]
+                        st.session_state["db"] = self.db
+                        st.session_state["vectorstore"] = self.vectorstore
+                        st.session_state["llm"] = self.llm
 
-                    status.info("Getting database schema context")
-                    schema = db.obj.get_schema()
+                        status.info("Fetching schema...")
+                        schema = self.db.obj.get_schema()
+                        time.sleep(1)
 
-                    logger.debug(f"Schema retrieved: {str(schema)}")
-                    time.sleep(1)
+                        schema_chunks = Helper.schema_to_text(schema)
+                        if len(schema_chunks) == 0:
+                            status.error("Schema chunks empty!")
+                            raise ValueError("Schema chunks empty!")
+                        time.sleep(1)
+                        
+                        status.info("Building vector index...")
+                        ok = self.vectorstore.obj.build_index(schema_chunks)
 
-                    # Convert the schema to text
-                    schema_chunks = Helper.schema_to_text(schema)
-                    
-                    if len(schema_chunks) == 0:
+                        if ok is None:
+                            status.error("Index build failed!")
+                            raise VectorstoreError("Index build failed.")
+
+                        self.vectorstore.obj.save_index(
+                            "schema_context_" + self.config[selected_db]["dbname"]
+                        )
+                        time.sleep(1)
+
+                        logger.info("Vector index saved.")
+                        status.info("Vector index built and saved.")
+                        time.sleep(1)
+
+                        status.success(f"✅ Connected to {selected_db}!")
                         status.empty()
-                        logger.exception(f"Schema Chunks Found: {schema_chunks}")
-                        raise ValueError(f"Schema Chunks Found: {schema_chunks}")
 
-                    # Saving Schema Context into Vectorstore
-                    status.info("Saving schema context into vectorstore")
-                    is_index_build = vectorstore.obj.build_index(schema_chunks)
-                    if is_index_build is None: 
-                        status.empty()
-                        logger.exception(f"Schema Chunks Found: {schema_chunks}")
-                        raise VectorstoreError("Schema context build failed.")
-                    
-                    vectorstore.obj.save_index("schema_store")
+                        # ✅ Prevent reconnection on refresh
+                        st.session_state.connected = True
 
-                    logger.info("Schema context saved into vectorstore")
-                    time.sleep(1)
-
-                    status.success(f"✅ Connected to {selected_db}!")
-                    status.empty()
-
-            except Exception as e:
-                logger.exception("Database connection failed!")
-                raise DatabaseConnectionError(str(e))
+                except Exception as e:
+                    logger.exception("Database connection failed!")
+                    raise DatabaseConnectionError(str(e))
+            else:
+                st.sidebar.warning("⚠️ Please upload database (.db) file.")
 
     @exception_handler(show_ui=True)
     def process_query_ui(self) -> None:
@@ -199,31 +263,21 @@ class App:
                     schema_context = "\n".join(context)  # join chunks
                     time.sleep(1)
 
-                    # Create prompt
-                    status.info("Creating prompt")
+                    status.info("Generating SQL Query...")
                     prompt = llm.obj.create_prompt_template()
-                    time.sleep(1)
 
-                    # Generate SQL Query
-                    status.info("Generating SQL query")
-                    query = {
-                        "context": schema_context,
-                        "question": question,
-                    }
+                    query = {"context": schema_context, "question": question}
                     sql_query = llm.obj.generate(prompt, query)
-
-                    logger.info(f"Generated SQL query: {sql_query}")
                     time.sleep(1)
 
-                    # Check for unsafe keywords
-                    is_unsafe_keyword = Helper.check_for_unsafe_keywords(sql_query)
-                    if is_unsafe_keyword:
-                        logger.error(f"Invalid SQL Query: {sql_query}")
+                    if Helper.check_for_unsafe_keywords(sql_query):
                         st.error(f"⚠️ Invalid SQL Query: {sql_query}")
-                        return 
-                    # Execute SQL query
+                        return
+
                     rows, columns = db.obj.read(sql_query)
                     df = pd.DataFrame(rows, columns=columns)
+                    
+                    status.empty()
 
                 # ---------------- Output ----------------
                 st.subheader("📝 Generated SQL Query")
@@ -232,20 +286,9 @@ class App:
                 st.subheader("📊 Query Results")
                 st.dataframe(df)
 
-                status.empty()
-
-            except QueryExecutionError as e:
-                logger.error(f"Query execution failed: {e.message}")
-                st.error(f"⚠️ Query execution failed: {e.message}")
-            except VectorstoreError as e:
-                logger.error(f"Vector store error: {e.message}")
-                st.error(f"⚠️ Vector store Error: {e.message}")
-            except LLMProviderError as e:
-                logger.error(f"LLM provider error: {e.message}")
-                st.error(f"⚠️ LLM Provider Error: {e.message}")
             except Exception as e:
-                logger.exception("Unexpected error during query processing")
-                st.error("❌ Unexpected error occurred while processing your query.")
+                logger.exception("Query error!")
+                st.error("❌ Unexpected error during query processing.")
 
 
 if __name__ == "__main__":
