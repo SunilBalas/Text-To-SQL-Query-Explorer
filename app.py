@@ -127,7 +127,7 @@ class App:
                     DatabaseType.POSTGRES.value.lower(),
                 ],
                 format_func=lambda db: f"🗄️ {db}",
-                disabled=False,
+                disabled=True,
             )
 
             # Load the database config
