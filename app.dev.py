@@ -14,7 +14,7 @@ from Core.Utils.helper import Helper
 class App:
     def __init__(self):
         # Load the database config
-        db_type = DatabaseType.SQLITE.value.lower()
+        db_type = DatabaseType.POSTGRES.value.lower()
         self.config = {
             db_type: Helper.get_database_config(DatabaseType(db_type))
         }
@@ -41,11 +41,11 @@ class App:
         schema_chunks = Helper.schema_to_text(schema)
 
         self.vectorstore.obj.build_index(schema_chunks)
-        self.vectorstore.obj.save_index("schema_store")
-        self.vectorstore.obj.load_index("schema_store")
+        self.vectorstore.obj.save_index("schema_context_" + self.config[self.db_type]["dbname"])
+        self.vectorstore.obj.load_index("schema_context_" + self.config[self.db_type]["dbname"])
 
         # User question
-        user_query = "explain the student table"
+        user_query = "Get the pages containing word 'graphical'"
 
         # Retrieve schema context from FAISS
         context = self.vectorstore.obj.retrieve(user_query, k=3)
@@ -67,10 +67,10 @@ class App:
         # Check for unsafe keywords
         is_validate = Helper.check_for_unsafe_keywords(sql_query)
 
-        if is_validate:
+        if not is_validate:
             # Execute the SQL query
-            data = self.db.obj.read(sql_query)
-            print(data)
+            rows, columns = self.db.obj.read(sql_query)
+            print(rows, columns)
 
 
 if __name__ == "__main__":

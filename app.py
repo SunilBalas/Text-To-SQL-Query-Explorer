@@ -4,6 +4,7 @@ import streamlit as st
 import pandas as pd
 import uuid
 import sys
+import unicodedata
 
 from Core.Enums.database import DatabaseType
 from Core.Enums.llm_provider import LLMProviderType
@@ -53,6 +54,9 @@ class App:
 
         if "db_uploaded" not in st.session_state:
             st.session_state.db_uploaded = False
+            
+        if "db_name" not in st.session_state:
+            st.session_state.db_name = None
 
         # Page-wide wrapper to align header → content → footer vertically
         st.markdown(
@@ -127,7 +131,7 @@ class App:
                     DatabaseType.POSTGRES.value.lower(),
                 ],
                 format_func=lambda db: f"🗄️ {db}",
-                disabled=True,
+                disabled=False,
             )
 
             # Load the database config
@@ -145,7 +149,14 @@ class App:
 
                     import re
                     filename = str(uploaded_db.name).replace(".db", "").lower()
-                    filename = re.sub(r"[^a-zA-Z0-9_-]", "", filename.replace(" ", "_"))
+                    filename = filename.replace(" ", "_")
+                    # keep only unicode letters, numbers, underscore and hyphen
+                    filename = "".join(
+                        c for c in filename
+                        if unicodedata.category(c)[0] in ("L", "N") or c in "_-"
+                    )
+                    if not filename:
+                        filename = "database"
 
                     self.unique_suffix = str(uuid.uuid4()).replace("-", "")
                     db_name = f"{filename}_{self.unique_suffix}"
@@ -162,6 +173,7 @@ class App:
                     self.config[selected_db]["dbname"] = st.session_state.db_name
             else:
                 st.session_state.db_uploaded = True
+                st.session_state.db_name = self.config[selected_db]["dbname"]
 
             self.connect_database(selected_db)
 

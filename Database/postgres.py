@@ -72,7 +72,11 @@ class PostgresDB(BaseDatabase):
         self.connect()
         try:
             logger.debug("📥 Running read query: %s", query)
-            self.cursor.execute(query, params)
+            if params:
+                self.cursor.execute(query, params)
+            else:
+                self.cursor.execute(query)
+                
             rows = self.cursor.fetchall()
             columns = [desc[0] for desc in self.cursor.description]
             logger.info("✅ Query read successful, fetched %d rows.", len(rows))
