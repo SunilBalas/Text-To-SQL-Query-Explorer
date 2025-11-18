@@ -59,26 +59,56 @@ class App:
             st.session_state.db_name = None
 
         # Page-wide wrapper to align header → content → footer vertically
-        st.markdown(
-            """
-            <style>
-            .main-container {
-                max-width: 900px;
-                padding-bottom: 80px; /* space for footer */
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-        
         with st.container():
             st.markdown('<div class="main-container">', unsafe_allow_html=True)
             self.header()
             self.process_query_ui()
-            # self.footer()
             st.markdown('</div>', unsafe_allow_html=True)
 
         self.sidebar()
+        self.load_tooltip()
+
+    @exception_handler(show_ui=True)
+    def load_tooltip(self) -> None:
+        # Add floating tooltip bottom-right
+        st.markdown(
+            """
+            <style>
+            .floating-tooltip {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                background: rgba(255, 255, 255, 0.15);
+                color: #fff;
+                padding: 10px 14px;
+                border-radius: 10px;
+                font-size: 13px;
+                backdrop-filter: blur(6px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                z-index: 999999;
+                animation: fadeOut 1s ease-in-out 4s forwards;
+            }
+
+            @keyframes fadeOut {
+                to {
+                    opacity: 0;
+                    visibility: hidden;
+                }
+            }
+
+            .floating-tooltip i {
+                color: #ff6b6b;
+                margin-right: 6px;
+            }
+            </style>
+
+            <div class="floating-tooltip">
+                <i class="fas fa-info-circle"></i>
+                AI-generated SQL queries may sometimes produce incorrect output.
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
     @exception_handler(show_ui=True)
     def header(self) -> None:
@@ -92,30 +122,6 @@ class App:
             unsafe_allow_html=True,
         )
         st.write("Select a database, connect, and ask questions in plain English.")
-
-    @exception_handler(show_ui=True)
-    def footer(self):
-        st.markdown(
-            """
-            <style>
-            .footer-centered {
-                position: fixed;
-                bottom: 0;
-                font-size: 14px;
-            }
-
-            .footer-centered i {
-                color: #d9534f;
-            }
-            </style>
-            
-            <div class="footer-centered">
-                <i class="fas fa-triangle-exclamation"></i>&nbsp;
-                Text-To-SQL Query Explorer may generate incorrect SQL output sometimes.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
 
     @exception_handler(show_ui=True)
     def sidebar(self) -> None:
