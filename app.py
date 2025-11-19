@@ -137,7 +137,7 @@ class App:
                     DatabaseType.POSTGRES.value.lower(),
                 ],
                 format_func=lambda db: f"🗄️ {db}",
-                disabled=False,
+                disabled = (st.secrets["dropdown"]["is_disabled"]).lower() == "true",
             )
 
             # Load the database config
