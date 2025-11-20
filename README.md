@@ -9,14 +9,15 @@ It is a **streamlit app** that converts plain English questions into SQL queries
 1. [Features](#features)
 2. [Tech Stack](#tech-stack)
 3. [Architecture Overview](#architecture-overview)
-4. [Prerequisites](#prerequisites)
-5. [Quick Start (Development)](#quick-start-development)
-6. [Configuration](#configuration)
-7. [How it works (step-by-step)](#how-it-works-step-by-step)
-8. [Running the App](#running-the-app)
-9. [Contribution](#contribution)
-10. [File Structure](#file-structure)
-11. [Final Notes and Next Steps](#final-notes-and-next-steps)
+4. [Project Demo](#project-demo)
+5. [Prerequisites](#prerequisites)
+6. [Quick Start (Development)](#quick-start-development)
+7. [Configuration](#configuration)
+8. [How it works (step-by-step)](#how-it-works-step-by-step)
+9. [Running the App](#running-the-app)
+10. [Contribution](#contribution)
+11. [File Structure](#file-structure)
+12. [Final Notes and Next Steps](#final-notes-and-next-steps)
 ---
 
 ## Features
@@ -50,6 +51,16 @@ It is a **streamlit app** that converts plain English questions into SQL queries
 4. **FAISS** — stores vectors with metadata (table, column, foreign keys relationships). On app startup or after schema change the index is rebuilt or updated.
 5. **LLM Layer (Groq / LLaMa)** — LangChain prompts the model with the user question + most relevant schema snippets (retrieved from FAISS) to produce a SQL query.
 6. **SQL Executor** — validates and runs SQL on the connected DB and returns results to UI.
+
+---
+
+---
+
+## Project Demo
+
+https://github.com/user-attachments/assets/67b96ca2-a801-403e-ba56-1f52ea568dd9
+
+https://github.com/user-attachments/assets/cf5c8758-73b7-4344-a367-41f724646c92
 
 ---
 
