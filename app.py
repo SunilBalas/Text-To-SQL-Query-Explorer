@@ -6,7 +6,7 @@ import uuid
 import sys
 import unicodedata
 
-from Core.Enums.database import DatabaseType
+from Core.Enums.database import DataTypeIconMap, DatabaseType
 from Core.Enums.llm_provider import LLMProviderType
 from Core.Enums.vectorstore import VectorStoreType
 
@@ -24,8 +24,8 @@ from Core.Utils.helper import Helper
 
 logger = Logger.get_logger()
 
-sys.stdout.reconfigure(encoding='utf-8')
-sys.stderr.reconfigure(encoding='utf-8')
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
 
 
 class App:
@@ -63,7 +63,7 @@ class App:
             st.markdown('<div class="main-container">', unsafe_allow_html=True)
             self.header()
             self.process_query_ui()
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         self.sidebar()
         self.load_tooltip()
@@ -137,7 +137,7 @@ class App:
                     DatabaseType.POSTGRES.value.lower(),
                 ],
                 format_func=lambda db: f"🗄️ {db}",
-                disabled = (st.secrets["dropdown"]["is_disabled"]).lower() == "true",
+                disabled=(st.secrets["dropdown"]["is_disabled"]).lower() == "true",
             )
 
             # Load the database config
@@ -182,6 +182,35 @@ class App:
                 st.session_state.db_name = self.config[selected_db]["dbname"]
 
             self.connect_database(selected_db)
+
+            # ---------------- Schema Tree View ----------------
+            if st.session_state.get("connected") and st.session_state.get("schema"):
+                self.db_schema_tree_view(st.session_state["schema"])
+
+    @exception_handler(show_ui=True)
+    def db_schema_tree_view(self, schema: dict) -> None:
+        st.markdown("### 📂 Database Schema")
+        schema = st.session_state["schema"]
+
+        for table_name, col_info in schema.items():
+            with st.expander(f"🗄️ {table_name}", expanded=False):
+                logger.debug("Rendering schema tree view for {table_name}")
+                columns = col_info.get("columns")
+                for col in columns:
+                    col_name = col.get("name")
+                    col_type = col.get("type")
+                    col_type = len(col_type.split(" ")) > 0 and col_type.replace(" ", "_") or col_type
+                    
+                    icon = (
+                        DataTypeIconMap[col_type.upper()].value
+                        if col_type.upper() in DataTypeIconMap.__members__
+                        else DataTypeIconMap.DEFAULT.value
+                    )
+
+                    st.markdown(
+                        f"- {icon} **{col_name}** <span style='opacity:0.6'>({col_type})</span>",
+                        unsafe_allow_html=True,
+                    )
 
     @exception_handler(show_ui=True)
     def connect_database(self, selected_db: str) -> None:
@@ -244,6 +273,9 @@ class App:
 
                         # ✅ Prevent reconnection on refresh
                         st.session_state.connected = True
+
+                        # Save schema into session state so sidebar can display it
+                        st.session_state["schema"] = schema
 
                 except Exception as e:
                     logger.exception("Database connection failed!")
